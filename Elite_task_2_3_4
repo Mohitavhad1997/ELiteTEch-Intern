@@ -1,0 +1,78 @@
+# Import libraries
+import os
+import pandas as pd
+import numpy as np
+import plotly.express as px
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.cluster import KMeans
+import openpyxl
+
+# Fix known Windows KMeans issue
+os.environ["OMP_NUM_THREADS"] = "1"
+
+# --- Simulated Employee Data ---
+data = {
+    'Employee_ID': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    'Experience_Years': [2, 5, 8, 1, 12, 4, 7, 3, 6, 9],
+    'Salary': [30000, 50000, 80000, 25000, 120000, 40000, 70000, 35000, 60000, 85000],
+    'Hours_Worked_Weekly': [40, 45, 50, 30, 60, 38, 48, 35, 46, 55],
+    'Productivity_Level': [1, 2, 3, 1, 3, 1, 2, 1, 2, 3]  # 1=Low, 2=Medium, 3=High
+}
+df = pd.DataFrame(data)
+
+# --- Task 1: Predictive Modeling ---
+# Define features and target variable
+X = df[['Experience_Years', 'Salary', 'Hours_Worked_Weekly']]
+y = df['Productivity_Level']
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Train a Random Forest Classifier
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions and evaluate
+predictions = model.predict(X_test)
+accuracy = accuracy_score(y_test, predictions)
+
+# Generate classification report
+class_report = classification_report(y_test, predictions, zero_division=0)
+
+# --- Task 2: Clustering Analysis ---
+# Perform K-Means Clustering
+kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+df['Salary_Cluster'] = kmeans.fit_predict(df[['Salary', 'Experience_Years']])
+
+# Map clusters to meaningful labels
+cluster_map = {0: 'Low Salary', 1: 'Mid Salary', 2: 'High Salary'}
+df['Salary_Cluster_Label'] = df['Salary_Cluster'].map(cluster_map)
+
+# --- Task 3: Data Visualization ---
+# Scatter plot of Salary vs Experience with Clusters
+fig1 = px.scatter(df, x='Experience_Years', y='Salary', color='Salary_Cluster_Label',
+                  size='Hours_Worked_Weekly', hover_data=['Productivity_Level'],
+                  title="Salary vs Experience with Clustering")
+fig1.write_html("salary_vs_experience.html")
+
+# Bar chart of Productivity Levels
+fig2 = px.bar(df, x='Productivity_Level', y='Salary', color='Salary_Cluster_Label',
+              title="Productivity Level vs Salary")
+fig2.write_html("productivity_vs_salary.html")
+
+# --- Save Results to Excel ---
+with pd.ExcelWriter("employee_productivity_analysis.xlsx", engine="openpyxl") as writer:
+    df.to_excel(writer, sheet_name="Employee_Data", index=False)
+    pd.DataFrame({
+        'Metric': ['Accuracy'],
+        'Value': [accuracy]
+    }).to_excel(writer, sheet_name="Model_Evaluation", index=False)
+
+# --- Print Results ---
+print("Project Completed!")
+print(f"Prediction Accuracy: {accuracy:.2f}")
+print("Classification Report:\n", class_report)
+print("Results saved to 'employee_productivity_analysis.xlsx'")
+print("Visualizations saved to 'salary_vs_experience.html' and 'productivity_vs_salary.html'")
